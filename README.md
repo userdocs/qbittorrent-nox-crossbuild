@@ -8,10 +8,9 @@ Deb packages are created and published as releases.
 
 The crossbuilds are built as part of a chain of modular shared builds using current dependencies as a proof of concept.
 
-```
+```bash
 zlib-ng > openssl > libtorrent > qt6 > qbittorrent-nox
 zlib-ng > openssl > libtorrent > qt5 > qbittorrent-nox
-```
 ```
 
 Download them using `amd64` as the example arch.
@@ -26,9 +25,9 @@ wget https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/latest/down
 
 Qt 5 builds here as prereleases:
 
-Debian Buster/Bullseye Ubuntu Bionic/Focal - https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/tag/4.3.9
+Debian Buster/Bullseye Ubuntu Bionic/Focal - [4.3.9](https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/tag/4.3.9)
 
-Debian Stretch - https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/tag/4.3.2
+Debian Stretch - [4.3.2](https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/tag/4.3.2)
 
 Install a required system dependency.
 
