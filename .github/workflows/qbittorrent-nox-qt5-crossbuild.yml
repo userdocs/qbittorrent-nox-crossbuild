@@ -1,0 +1,232 @@
+name: qbittorrent-nox+qt5+crossbuild+package+release
+on:
+  - workflow_dispatch
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        name: [qbittorrent-nox]
+        os_id: [debian, ubuntu]
+        os_version_id: [stretch, buster, bullseye, bionic, focal]
+        arch: [amd64, armhf, arm64]
+        include:
+          - arch: amd64
+            CHOST: "x86_64-linux-gnu"
+            docker_arch: amd64
+            docker_platform: linux/amd64
+          - arch: armhf
+            CHOST: "arm-linux-gnueabihf"
+            docker_arch: arm32v7
+            docker_platform: linux/arm/v7
+          - arch: arm64
+            CHOST: "aarch64-linux-gnu"
+            docker_arch: arm64v8
+            docker_platform: linux/arm64/v8
+        exclude:
+          - os_id: debian
+            os_version_id: bionic
+          - os_id: debian
+            os_version_id: focal
+          - os_id: ubuntu
+            os_version_id: stretch
+          - os_id: ubuntu
+            os_version_id: buster
+          - os_id: ubuntu
+            os_version_id: bullseye
+
+    name: ${{ matrix.arch }} ${{ matrix.os_id }}:${{ matrix.os_version_id }} ${{ matrix.name }}
+
+    env:
+      opt_dir_name: "opt/local"
+      include_dir: "/opt/local/include"
+      lib_dir: "/opt/local/lib"
+      github_branch: ""
+      cxx_standard: "17"
+      prerelease: true
+
+    steps:
+      - uses: actions/checkout@v2.4.0
+
+      - name: Host - update
+        run: sudo apt-get update
+
+      - name: Host - upgrade
+        run: sudo apt-get -y upgrade
+
+      - name: Host - Install host qemu-static
+        run: sudo apt-get install -y qemu binfmt-support qemu-user-static
+
+      - name: Host - Docker multiarch bootstrap
+        run: sudo docker run --rm --privileged multiarch/qemu-user-static --reset -p yes
+
+      - name: Host - Create Docker template env file
+        run: |
+          echo "DEBIAN_FRONTEND=noninteractive" > env.custom
+          echo "LANG=en_US.UTF-8" >> env.custom
+          echo "PATH=/${{ env.opt_dir_name }}/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" >> env.custom
+          echo "LD_LIBRARY_PATH=/${{ env.opt_dir_name }}/lib:/usr/lib/${{ matrix.CHOST }}:/usr/lib:/usr/local/lib" >> env.custom
+          echo "CHOST=${{ matrix.CHOST }}" >> env.custom
+          echo "CC=${{ matrix.CHOST }}-gcc" >> env.custom
+          echo "AR=${{ matrix.CHOST }}-ar" >> env.custom
+          echo "CXX=${{ matrix.CHOST }}-g++" >> env.custom
+
+      - name: Host - Create docker multiarch ${{ matrix.arch }} container
+        run: docker run --name multiarch -it -d --env-file env.custom -w /root -v ${{ github.workspace }}:/root ${{ matrix.os_id }}:${{ matrix.os_version_id }}
+
+      - name: Host - Create docker binary test ${{ matrix.arch }} container
+        run: docker run --name bintest -it -d --env-file env.custom -w /root --platform ${{ matrix.docker_platform }} -v ${{ github.workspace }}:/root ${{ matrix.docker_arch }}/${{ matrix.os_id }}:${{ matrix.os_version_id }}
+
+      - name: Docker target - fix Ubuntu sources
+        if: |
+          matrix.os_id == 'ubuntu' && matrix.arch != 'amd64'
+        run: |
+          docker exec --env-file env.custom -w /etc/apt/ multiarch  bash -c 'echo "deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports ${{ matrix.os_version_id }} main restricted universe multiverse" > sources.list'
+          docker exec --env-file env.custom -w /etc/apt/ multiarch  bash -c 'echo "deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports ${{ matrix.os_version_id }}-updates main restricted universe multiverse" >> sources.list'
+          docker exec --env-file env.custom -w /etc/apt/ multiarch  bash -c 'echo "deb [arch=${{ matrix.arch }}] http://ports.ubuntu.com/ubuntu-ports ${{ matrix.os_version_id }}-security main restricted universe multiverse" >> sources.list'
+          docker exec --env-file env.custom -w /etc/apt/ multiarch  bash -c 'echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ ${{ matrix.os_version_id }} main restricted universe multiverse" >> sources.list'
+          docker exec --env-file env.custom -w /etc/apt/ multiarch  bash -c 'echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ ${{ matrix.os_version_id }}-updates main restricted universe multiverse" >> sources.list'
+          docker exec --env-file env.custom -w /etc/apt/ multiarch  bash -c 'echo "deb [arch=amd64] http://archive.ubuntu.com/ubuntu/ ${{ matrix.os_version_id }}-backports restricted universe multiverse" >> sources.list'
+          docker exec --env-file env.custom -w /etc/apt/ multiarch  bash -c 'echo "deb [arch=amd64] http://security.ubuntu.com/ubuntu/ ${{ matrix.os_version_id }}-security main restricted universe multiverse" >> sources.list'
+
+      - name: Docker target - dpkg configure arch
+        run: docker exec --env-file env.custom multiarch dpkg --add-architecture ${{ matrix.arch }}
+
+      - name: Docker target - Run apt-get update
+        run: |
+          docker exec --env-file env.custom multiarch apt-get update
+          docker exec --env-file env.custom bintest apt-get update
+
+      - name: Docker target - Run apt-get upgrade
+        run: |
+          docker exec --env-file env.custom multiarch apt-get upgrade -y
+          docker exec --env-file env.custom bintest apt-get upgrade -y
+
+      - name: Docker target - apt-get install the core build dependencies
+        run: |
+          docker exec --env-file env.custom multiarch apt-get install -y build-essential curl pkg-config automake libtool git perl python3 python3-dev unzip ccache
+          docker exec --env-file env.custom bintest apt-get install -y openssl binutils
+
+      - name: Docker target - apt-get install crossbuild-essential
+        if: matrix.arch != 'amd64'
+        run: docker exec --env-file env.custom multiarch apt-get install -y crossbuild-essential-${{ matrix.arch }}
+
+      - name: Docker target - apt-get install cross target deps
+        run: docker exec --env-file env.custom multiarch apt-get install -y openssl:${{ matrix.arch }} re2c:${{ matrix.arch }} libstdc++-*-dev:${{ matrix.arch }}
+
+      - name: Docker target - bionic - apt-get install gcc-8-base g++-8
+        if: matrix.arch == 'amd64' && matrix.os_version_id == 'bionic'
+        run: docker exec --env-file env.custom multiarch apt-get install -y gcc-8 g++-8
+
+      - name: Docker target - bionic - apt-get install gcc-8 g++-8 cross
+        if: matrix.arch != 'amd64' && matrix.os_version_id == 'bionic'
+        run: docker exec --env-file env.custom multiarch apt-get install -y cpp-8-${{ matrix.CHOST }} g++-8-${{ matrix.CHOST }} gcc-8-${{ matrix.CHOST }}
+
+      - name: Docker target - bionic - reconfigure build vars
+        if: matrix.os_version_id == 'bionic'
+        run: |
+          echo "CC=${{ matrix.CHOST }}-gcc-8" >> env.custom
+          echo "AR=${{ matrix.CHOST }}-gcc-ar-8" >> env.custom
+          echo "CXX=${{ matrix.CHOST }}-g++-8" >> env.custom
+
+      - name: Docker target - cmake and ninja download and install
+        run: |
+          docker exec --env-file env.custom multiarch curl -sNL "https://github.com/userdocs/cmake-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_version_id }}-cmake-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_version_id }}-cmake-${{ matrix.arch }}.deb
+          docker exec --env-file env.custom multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_version_id }}-cmake-${{ matrix.arch }}.deb
+
+      - name: Docker target - zlib-ng download and install
+        run: |
+          docker exec --env-file env.custom multiarch curl -sNL "https://github.com/userdocs/zlib-ng-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_version_id }}-zlib-ng-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_version_id }}-zlib-ng-${{ matrix.arch }}.deb
+          docker exec --env-file env.custom multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_version_id }}-zlib-ng-${{ matrix.arch }}.deb
+
+      - name: Docker target - openssl download and install
+        run: |
+          docker exec --env-file env.custom multiarch curl -sNL "https://github.com/userdocs/openssl-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_version_id }}-openssl-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_version_id }}-openssl-${{ matrix.arch }}.deb
+          docker exec --env-file env.custom multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_version_id }}-openssl-${{ matrix.arch }}.deb
+
+      - name: Docker target - libtorrent download and install
+        run: |
+          docker exec --env-file env.custom multiarch curl -sNL "https://github.com/userdocs/libtorrent-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_version_id }}-libtorrent-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_version_id }}-libtorrent-${{ matrix.arch }}.deb
+          docker exec --env-file env.custom multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_version_id }}-libtorrent-${{ matrix.arch }}.deb
+
+      - name: Docker target - qt5 download and install
+        run: |
+          docker exec --env-file env.custom multiarch curl -sNL "https://github.com/userdocs/qt5-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_version_id }}-qt5-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_version_id }}-qt5-${{ matrix.arch }}.deb
+          docker exec --env-file env.custom multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_version_id }}-qt5-${{ matrix.arch }}.deb
+
+      - name: Docker target - Bootstrap the boost files
+        run: |
+          boost_version="$(git ls-remote -q -t --refs https://github.com/boostorg/boost.git | awk '{sub("refs/tags/boost-", "");sub("(.*)(rc|alpha|beta)(.*)", ""); print $2 }' | awk '!/^$/' | sort -rV | head -n1)"
+          curl -sNLk https://boostorg.jfrog.io/artifactory/main/release/${boost_version}/source/boost_${boost_version//./_}.tar.gz -o "boost.tar.gz"
+          tar xf "boost.tar.gz"
+          echo "boost_version=${boost_version//./_}" >> $GITHUB_ENV
+
+      - name: Docker target - qbittorrent set latest release as branch
+        if: matrix.os_version_id != 'stretch'
+        run: |
+          echo "github_branch=$(git ls-remote -q -t --refs https://github.com/qbittorrent/qBittorrent.git | awk '{sub("refs/tags/", "");sub("(.*)(-[^0-9].*|rc|alpha|beta)(.*)", ""); print $2 }' | awk '!/^$/' | sort -rV | head -n1)" >> $GITHUB_ENV
+          echo "release_body_text=kde/5.15 on amd64 arm64 armhf for Debian Buster Bullseye and Ubuntu bionic Focal" >> $GITHUB_ENV
+
+      - name: Host - stretch - reconfigure unique envs
+        if: matrix.os_version_id == 'stretch'
+        run: |
+          echo "github_branch=release-4.3.2" >> $GITHUB_ENV
+          echo "cxx_standard=14" >> $GITHUB_ENV
+          echo "release_body_text=kde/5.15 on amd64 arm64 armhf for Debian Stretch " >> $GITHUB_ENV
+
+      - name: Docker target - qbittorrent - git clone
+        run: docker exec --env-file env.custom multiarch git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/qbittorrent/qBittorrent.git qbittorrent
+
+      - name: Host - stretch - fix cmake version
+        if: matrix.os_version_id == 'stretch'
+        run: docker exec --env-file env.custom -w /root/qbittorrent multiarch sed 's|set(QBT_VER_STATUS "alpha1"|set(QBT_VER_STATUS ""|g' -i CMakeLists.txt
+
+      - name: Docker target - qbittorrent cmake configure
+        run: |
+          docker exec --env-file env.custom -w /root/qbittorrent multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build \
+          -D CMAKE_BUILD_TYPE="release" \
+          -D GUI=OFF \
+          -D CMAKE_CXX_STANDARD="${{ env.cxx_standard }}" \
+          -D CMAKE_PREFIX_PATH="/${{ env.opt_dir_name }}" \
+          -D BOOST_INCLUDEDIR="/root/boost_${{ env.boost_version }}/" \
+          -D CMAKE_INSTALL_PREFIX="/root/build/${{ env.opt_dir_name }}"
+
+      - name: Docker target - qbittorrent cmake build
+        run: docker exec --env-file env.custom -w /root/qbittorrent multiarch cmake --build build
+
+      - name: Docker target - qbittorrent cmake install
+        run: docker exec --env-file env.custom -w /root/qbittorrent multiarch cmake --install build
+
+      - name: Docker target - Set full qBittorrent version to variable using strings
+        run: echo "qbittorrent-nox_version=$(strings -d build/${{ env.opt_dir_name }}/bin/${{ matrix.name }} | sed -rn 's|^qBittorrent/(.*)|\1|p' | head -n 1)" >> $GITHUB_ENV
+
+      - name: Docker target - Set deb dependencies for qbittorrent-nox
+        run: echo "qbittorrent-nox-deb-deps=zlib-ng,openssl,libtorrent,qt6,libgeoip1" >> $GITHUB_ENV
+
+      - name: Host - Create deb packages
+        uses: jiro4989/build-deb-action@v2
+        with:
+          package: "${{ matrix.name }}"
+          package_root: build
+          maintainer: userdocs
+          version: "${{ env.qbittorrent-nox_version }}"
+          depends: "${{ env.qbittorrent-nox-deb-deps }}"
+          arch: "${{ matrix.arch }}"
+          desc: "${{ matrix.name }}-${{ matrix.arch }} for ${{ matrix.os_id }}-${{ matrix.os_version_id }}"
+
+      - name: Host - Remove version from release name and use hyphens
+        run: mv -f "${{ matrix.name }}_${{ env.qbittorrent-nox_version }}_${{ matrix.arch }}.deb" "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
+
+      - name: Host - "Create release - tag - assets"
+        uses: ncipollo/release-action@v1.8.10
+        with:
+          prerelease: ${{ env.prerelease }}
+          artifacts: "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
+          replacesArtifacts: true
+          tag: "${{ env.qbittorrent-nox_version }}"
+          name: "qbittorrent-nox ${{ env.qbittorrent-nox_version }}"
+          body: "qbittorrent-nox built against qt5 ${{ env.release_body_text }}"
+          allowUpdates: true
+          token: "${{ secrets.GITHUB_TOKEN }}"
