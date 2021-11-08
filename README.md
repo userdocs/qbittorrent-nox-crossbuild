@@ -13,14 +13,18 @@ zlib-ng > openssl > libtorrent > qt6 > qbittorrent-nox
 zlib-ng > openssl > libtorrent > qt5 > qbittorrent-nox
 ```
 
-Download them using `amd64` as the example arch.
+Qt6 builds:
+
+Supported OS and arch : Debian Buster/Bullseye Ubuntu Bionic/Focal amd64 arm64 armhf
+
+Download them using these commands:
 
 ```bash
-wget https://github.com/userdocs/zlib-ng-crossbuild/releases/latest/download/debian-bullseye-zlib-ng-amd64.deb
-wget https://github.com/userdocs/openssl-crossbuild/releases/latest/download/debian-bullseye-openssl-amd64.deb
-wget https://github.com/userdocs/libtorrent-crossbuild/releases/latest/download/debian-bullseye-libtorrent-amd64.deb
-wget https://github.com/userdocs/qt6-crossbuild/releases/latest/download/debian-bullseye-qt6-amd64.deb
-wget https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/latest/download/debian-bullseye-qbittorrent-nox-amd64.deb
+wget "https://github.com/userdocs/zlib-ng-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-zlib-ng-$(dpkg --print-architecture).deb"
+wget "https://github.com/userdocs/openssl-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-openssl-$(dpkg --print-architecture).deb"
+wget "https://github.com/userdocs/libtorrent-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-libtorrent-$(dpkg --print-architecture).deb"
+wget "https://github.com/userdocs/qt6-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-qt6-$(dpkg --print-architecture).deb"
+wget "https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-qbittorrent-nox-$(dpkg --print-architecture).deb"
 ```
 
 Qt 5 builds here as prereleases:
@@ -38,11 +42,11 @@ sudo apt install libgeoip1
 Install the packages.
 
 ```bash
-sudo dpkg -i debian-bullseye-zlib-ng-amd64.deb
-sudo dpkg -i debian-bullseye-openssl-amd64.deb
-sudo dpkg -i debian-bullseye-libtorrent-amd64.deb
-sudo dpkg -i debian-bullseye-qt6-amd64.deb
-sudo dpkg -i debian-bullseye-qbittorrent-nox-amd64.deb
+sudo dpkg -i "$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-zlib-ng-$(dpkg --print-architecture).deb"
+sudo dpkg -i "$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-openssl-$(dpkg --print-architecture).deb"
+sudo dpkg -i "$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-libtorrent-$(dpkg --print-architecture).deb"
+sudo dpkg -i "$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-qt6-$(dpkg --print-architecture).deb"
+sudo dpkg -i "$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-qbittorrent-nox-$(dpkg --print-architecture).deb"
 ```
 
 Add the binary location to your path:
