@@ -55,6 +55,12 @@ Add the binary location to your path:
 export PATH="/opt/local/bin:$PATH"
 ```
 
+Update library paths
+
+```bash
+ldconfig
+```
+
 Run the program:
 
 ```bash
