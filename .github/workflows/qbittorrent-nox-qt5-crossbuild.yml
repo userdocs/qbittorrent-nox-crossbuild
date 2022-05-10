@@ -227,8 +227,8 @@ jobs:
           prerelease: ${{ env.prerelease }}
           artifacts: "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
           replacesArtifacts: true
-          tag: "${{ env.qbittorrent-nox_version }}"
-          name: "qbittorrent-nox ${{ env.qbittorrent-nox_version }}"
+          tag: "${{ env.qbittorrent-nox_version }}.qt5"
+          name: "qbittorrent-nox ${{ env.qbittorrent-nox_version }} qt5"
           body: "qbittorrent-nox built against qt5 ${{ env.release_body_text }}"
           allowUpdates: true
           token: "${{ secrets.GITHUB_TOKEN }}"

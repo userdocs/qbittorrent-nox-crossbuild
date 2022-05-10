@@ -213,8 +213,8 @@ jobs:
           prerelease: ${{ env.prerelease }}
           artifacts: "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
           replacesArtifacts: true
-          tag: "${{ env.qbittorrent-nox_version }}"
-          name: "qbittorrent-nox ${{ env.qbittorrent-nox_version }}"
+          tag: "${{ env.qbittorrent-nox_version }}.qt6"
+          name: "qbittorrent-nox ${{ env.qbittorrent-nox_version }} qt6"
           body: "qbittorrent-nox built against qt6 on amd64 arm64 armhf for Debian Stretch Buster Bullseye and Ubuntu bionic Focal Jammy"
           allowUpdates: true
           token: "${{ secrets.GITHUB_TOKEN }}"
