@@ -43,7 +43,7 @@ jobs:
       opt_dir_name: "opt/local"
       include_dir: "/opt/local/include"
       lib_dir: "/opt/local/lib"
-      github_branch: "release-4.4.2"
+      github_branch: ""
       cxx_standard: "17"
       prerelease: false
 
@@ -163,6 +163,11 @@ jobs:
           tar xf "boost.tar.gz"
           echo "boost_version=${boost_version//./_}" >> $GITHUB_ENV
 
+      - name: Docker target - qbittorrent set latest release as branch
+        if: matrix.os_version_id != 'stretch'
+        run: |
+          echo "github_branch=$(git ls-remote -q -t --refs https://github.com/qbittorrent/qBittorrent.git | awk '{sub("refs/tags/", "");sub("(.*)(-[^0-9].*|rc|alpha|beta)(.*)", ""); print $2 }' | awk '!/^$/' | sort -rV | head -n1)" >> $GITHUB_ENV
+          echo "release_body_text=kde/5.15 on amd64 arm64 armhf for Debian Buster Bullseye and Ubuntu bionic Focal" >> $GITHUB_ENV
       - name: Docker target - qbittorrent - git clone
         run: docker exec --env-file env.custom multiarch git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/qbittorrent/qBittorrent.git qbittorrent
 
