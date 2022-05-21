@@ -1,6 +1,8 @@
 name: qbittorrent-nox+qt6+crossbuild+package+release
 on:
-  - workflow_dispatch
+  workflow_dispatch:
+  schedule:
+    - cron: "0 05 * * *"
 
 jobs:
   build:
