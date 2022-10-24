@@ -210,11 +210,12 @@ jobs:
         run: echo "qbittorrent-nox-deb-deps=zlib-ng,openssl,libtorrent,qt6,libgeoip1" >> $GITHUB_ENV
 
       - name: Host - Create deb packages
-        uses: jiro4989/build-deb-action@v2
+        uses: jiro4989/build-deb-action@v2.7.0
         with:
           package: "${{ matrix.name }}"
           package_root: build
           maintainer: userdocs
+          compress_type: gzip
           version: "${{ env.qbittorrent-nox_version }}"
           depends: "${{ env.qbittorrent-nox-deb-deps }}"
           arch: "${{ matrix.arch }}"
