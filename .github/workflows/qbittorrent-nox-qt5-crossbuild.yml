@@ -1,8 +1,6 @@
 name: qbittorrent-nox+qt5+crossbuild+package+release
 on:
   workflow_dispatch:
-  schedule:
-    - cron: "0 04 * * *"
 
 jobs:
   build:
@@ -52,7 +50,7 @@ jobs:
       prerelease: true
 
     steps:
-      - uses: actions/checkout@v3.1.0
+      - uses: actions/checkout@v3
 
       - name: Host - update
         run: sudo apt-get update
@@ -210,7 +208,7 @@ jobs:
         run: echo "qbittorrent-nox-deb-deps=zlib-ng,openssl,libtorrent,qt6,libgeoip1" >> $GITHUB_ENV
 
       - name: Host - Create deb packages
-        uses: jiro4989/build-deb-action@v2.7.0
+        uses: jiro4989/build-deb-action@v2
         with:
           package: "${{ matrix.name }}"
           package_root: build
@@ -225,7 +223,7 @@ jobs:
         run: mv -f "${{ matrix.name }}_${{ env.qbittorrent-nox_version }}_${{ matrix.arch }}.deb" "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
 
       - name: Host - "Create release - tag - assets"
-        uses: ncipollo/release-action@v1.11.1
+        uses: ncipollo/release-action@v1
         with:
           prerelease: ${{ env.prerelease }}
           artifacts: "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
