@@ -208,8 +208,8 @@ jobs:
 
       - name: Docker target - Set full qBittorrent version to variable
         run: |
-          qbittorrent-nox-version="${{ env.github_branch }}"
-          echo "qbittorrent-nox-version=${qbittorrent-nox-version/release-}" >> $GITHUB_ENV
+          qbittorrent_nox_version="${{ env.github_branch }}"
+          echo "qbittorrent_nox_version=${qbittorrent_nox_version/release-}" >> $GITHUB_ENV
 
       - name: Docker target - Set deb dependencies for qbittorrent-nox
         run: echo "qbittorrent-nox-deb-deps=zlib-ng,openssl,libtorrent,qt6,libgeoip1" >> $GITHUB_ENV
@@ -221,13 +221,13 @@ jobs:
           package_root: build
           maintainer: userdocs
           compress_type: gzip
-          version: "${{ env.qbittorrent-nox-version }}"
+          version: "${{ env.qbittorrent_nox_version }}"
           depends: "${{ env.qbittorrent-nox-deb-deps }}"
           arch: "${{ matrix.arch }}"
           desc: "${{ matrix.name }}-${{ matrix.arch }} for ${{ matrix.os_id }}-${{ matrix.os_version_id }}"
 
       - name: Host - Remove version from release name and use hyphens
-        run: mv -f "${{ matrix.name }}_${{ env.qbittorrent-nox-version }}_${{ matrix.arch }}.deb" "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
+        run: mv -f "${{ matrix.name }}_${{ env.qbittorrent_nox_version }}_${{ matrix.arch }}.deb" "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
 
       - name: Host - "Create release - tag - assets"
         uses: ncipollo/release-action@v1
@@ -235,8 +235,8 @@ jobs:
           prerelease: ${{ env.prerelease }}
           artifacts: "${{ matrix.os_id }}-${{ matrix.os_version_id }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
           replacesArtifacts: true
-          tag: "${{ env.qbittorrent-nox-version }}.qt6"
-          name: "qbittorrent-nox ${{ env.qbittorrent-nox-version }} qt6"
+          tag: "${{ env.qbittorrent_nox_version }}.qt6"
+          name: "qbittorrent-nox ${{ env.qbittorrent_nox_version }} qt6"
           body: "qbittorrent-nox built against qt6 on amd64 arm64 armhf for Debian Stretch Buster Bullseye and Ubuntu bionic Focal Jammy"
           allowUpdates: true
           token: "${{ secrets.GITHUB_TOKEN }}"
