@@ -208,7 +208,7 @@ jobs:
 
       - name: Docker target - Set full qBittorrent version to variable
         run: |
-          qbittorrent_version="${{ env.qbittorrent_branch }}"
+          qbittorrent_version="${{ env.github_branch }}"
           echo "qbittorrent_version=${qbittorrent_version/release-}" >> $GITHUB_ENV
 
       - name: Docker target - Set deb dependencies for qbittorrent-nox
