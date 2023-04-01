@@ -19,7 +19,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     outputs:
-      qt_version: ${{ steps.version_info.outputs.qt_version }}
+      qbittorrent_nox_version: ${{ steps.version_info.outputs.qbittorrent_nox_version }}
     strategy:
       fail-fast: false
       matrix:
@@ -166,7 +166,7 @@ jobs:
 
       - name: Info
         id: version_info
-        run: |          
+        run: |
           echo "qbittorrent_nox_version=${{ env.qbittorrent_nox_version }}" >> $GITHUB_OUTPUT
 
       - name: Host - upload deb packages
