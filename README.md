@@ -21,14 +21,14 @@ Supported OS and arch : Debian Buster/Bullseye Ubuntu Bionic/Focal amd64 arm64 a
 Download them using these commands:
 
 ```bash
-wget "https://github.com/userdocs/zlib-ng-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-zlib-ng-$(dpkg --print-architecture).deb"
-wget "https://github.com/userdocs/openssl-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-openssl-$(dpkg --print-architecture).deb"
-wget "https://github.com/userdocs/libtorrent-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-libtorrent-$(dpkg --print-architecture).deb"
-wget "https://github.com/userdocs/qt6-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-qt6-$(dpkg --print-architecture).deb"
-wget "https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-qbittorrent-nox-$(dpkg --print-architecture).deb"
+curl -sLO "https://github.com/userdocs/zlib-ng-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-zlib-ng-$(dpkg --print-architecture).deb"
+curl -sLO "https://github.com/userdocs/openssl-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-openssl-$(dpkg --print-architecture).deb"
+curl -sLO "https://github.com/userdocs/libtorrent-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-libtorrent-$(dpkg --print-architecture).deb"
+curl -sLO "https://github.com/userdocs/qt6-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-qt6-$(dpkg --print-architecture).deb"
+curl -sLO "https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/latest/download/$(. /etc/os-release && printf '%s' "$ID")-$(. /etc/os-release && printf '%s' "$VERSION_CODENAME")-qbittorrent-nox-$(dpkg --print-architecture).deb"
 ```
 
-Qt 5 builds here as prereleases:
+Qt 5 builds here as pre-release:
 
 Debian Buster/Bullseye Ubuntu Bionic/Focal - [4.3.9](https://github.com/userdocs/qbittorrent-nox-crossbuild/releases/tag/4.3.9)
 
@@ -37,7 +37,13 @@ Debian Stretch - [4.3.2](https://github.com/userdocs/qbittorrent-nox-crossbuild/
 Install a required system dependency.
 
 ```bash
-sudo apt install libgeoip1
+sudo apt install libgeoip1 libicu[0-9]+$ libdouble-conversion[0-9]$
+```
+
+Debian Bullseye / Ubuntu Jammy only
+
+```bash
+sudo apt install libmd4c-html0
 ```
 
 Install the packages.
