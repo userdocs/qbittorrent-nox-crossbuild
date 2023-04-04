@@ -130,15 +130,15 @@ jobs:
         run: docker exec multiarch git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/qbittorrent/qBittorrent.git qbittorrent
 
       - name: Docker - qbittorrent cmake configure
-        run: |
-          docker exec -w /home/github/qbittorrent multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build \
-          -D CMAKE_BUILD_TYPE="release" \
-          -D GUI=OFF -D QT6="ON" \
-          -D CMAKE_CXX_STANDARD="${{ env.cxx_standard }}" \
-          -D CMAKE_CXX_STANDARD_REQUIRED=ON \
-          -D CMAKE_CXX_EXTENSIONS=OFF \
-          -D CMAKE_PREFIX_PATH="/${{ env.opt_dir_name }}" \
-          -D BOOST_INCLUDEDIR="/home/github/boost_${{ env.boost_version }}/" \
+        run: >
+          docker exec -w /home/github/qbittorrent multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build
+          -D CMAKE_BUILD_TYPE="release"
+          -D GUI=OFF -D QT6="OFF"
+          -D CMAKE_CXX_STANDARD="${{ env.cxx_standard }}"
+          -D CMAKE_CXX_STANDARD_REQUIRED=ON
+          -D CMAKE_CXX_EXTENSIONS=OFF
+          -D CMAKE_PREFIX_PATH="/${{ env.opt_dir_name }}"
+          -D BOOST_INCLUDEDIR="/home/github/boost_${{ env.boost_version }}/"
           -D CMAKE_INSTALL_PREFIX="/home/github/build/${{ env.opt_dir_name }}"
 
       - name: Docker - qbittorrent cmake build
