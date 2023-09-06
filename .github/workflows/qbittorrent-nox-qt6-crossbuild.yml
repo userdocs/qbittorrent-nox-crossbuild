@@ -51,7 +51,7 @@ jobs:
 
     steps:
       - name: Host - Checkout action
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       # Fix this bug https://github.com/actions/runner-images/issues/7192
       - name: Host - phased updates
@@ -191,7 +191,7 @@ jobs:
       qbittorrent_nox_version: ${{ needs.build.outputs.qbittorrent_nox_version }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Host - Download artifacts
         uses: actions/download-artifact@v3
@@ -224,6 +224,6 @@ jobs:
     env:
       GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Trigger rerun workflow on job failures
         run: gh workflow run rerun.yml -f run_id=${{ github.run_id }} -f attempts=${{ github.run_attempt }} -f retries=${{ inputs.retries }}
