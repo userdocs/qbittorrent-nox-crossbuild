@@ -176,7 +176,7 @@ jobs:
           echo "qbittorrent_nox_version=${{ env.qbittorrent_nox_version }}" >> $GITHUB_OUTPUT
 
       - name: Host - upload deb packages
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: "${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.name }}-${{ matrix.arch }}-deb"
           path: "${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
