@@ -6,13 +6,14 @@ on:
       skip_rerun:
         description: "Skip rerun?"
         required: true
+        default: true
         type: boolean
       retries:
-        description: 'Number of rerun retries'
+        description: "Number of rerun retries"
         required: true
-        default: '5'
+        default: "1"
         type: choice
-        options: [ "1", "2", "3", "4", "5", "6", "7", "8", "9" ]
+        options: ["1", "2", "3", "4", "5", "6", "7", "8", "9"]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -31,15 +32,19 @@ jobs:
       matrix:
         name: [qbittorrent-nox]
         os_id: [debian, ubuntu]
-        os_codename: [bullseye, focal, jammy]
+        os_codename: [bullseye, bookworm, focal, jammy, noble]
         arch: [amd64, armhf, arm64]
         exclude:
           - os_id: debian
             os_codename: focal
           - os_id: debian
             os_codename: jammy
+          - os_id: debian
+            os_codename: noble
           - os_id: ubuntu
             os_codename: bullseye
+          - os_id: ubuntu
+            os_codename: bookworm
 
     name: ${{ matrix.os_id }}:${{ matrix.os_codename }} ${{ matrix.name }} ${{ matrix.arch }}
 
@@ -55,26 +60,20 @@ jobs:
 
       # Fix this bug https://github.com/actions/runner-images/issues/7192
       - name: Host - phased updates
-        run: echo 'APT::Get::Always-Include-Phased-Updates "false";' | sudo tee /etc/apt/apt.conf.d/99-phased-updates
-
-      # Bootstrap Ubuntu Lunar repo so that we can install specific app we may need, like binfmt and qemu-user-static
-      - name: Host - set up lunar repo -t lunar
-        run: |
-          printf '%b\n' 'Package: *\nPin: release n=lunar\nPin-Priority: 50' | sudo tee /etc/apt/preferences
-          printf '%b\n' 'deb http://archive.ubuntu.com/ubuntu/ lunar main universe restricted' | sudo tee /etc/apt/sources.list.d/lunar.list
+        run: printf '%s\n' 'APT::Get::Always-Include-Phased-Updates "false";' | sudo tee /etc/apt/apt.conf.d/99-phased-updates
 
       - name: Host - update
         run: sudo apt-get update
 
-      # - name: Host - upgrade
-      #   run: sudo apt-get -y upgrade
+      - name: Host - upgrade
+        run: sudo apt-get -y upgrade
 
-      # No action or other method to bootstrap binfmt. Install from lunar and we get the latest versions and full docker support
-      - name: Host - set up qemu-user-static binfmt-support from lunar
-        run: sudo apt install -t lunar libpipeline1 qemu-user-static binfmt-support
+      # No action or other method to bootstrap binfmt-support and qemu-user-static on the host runner
+      - name: Host - set up qemu-user-static binfmt-support
+        run: sudo apt install libpipeline1 qemu-user-static binfmt-support
 
       # Why are we doing it like this and not using a container setup? That's how you're supposed to do it, right?
-      # qemu-user-static and binfmt-support are not part of the runner images https://github.com/actions/runner-images/blob/main/images/linux/Ubuntu2204-Readme.md
+      # qemu-user-static and binfmt-support are not part of the runner images https://github.com/actions/runner-images?tab=readme-ov-file#available-images
       # We would need to modify the runner to install these before the container starts. Which you cannot do as there is no way to bootstrap the host.
       # So we install them on the host then create/pull a custom docker image that we use to build the multiarch targets.
       # We are always on the host runner but can use any docker image we need with the access the qemu emulation when required.
@@ -211,7 +210,7 @@ jobs:
           replacesArtifacts: true
           tag: "${{ env.qbittorrent_nox_version }}.qt6"
           name: "qbittorrent-nox ${{ env.qbittorrent_nox_version }} qt6"
-          body: "qbittorrent-nox built against qt6 on amd64 arm64 armhf for Debian Buster Bullseye and Ubuntu bionic Focal"
+          body: "qbittorrent-nox built against qt6 on amd64 arm64 armhf for Debian Bullseye Bookworm and Ubuntu Focal Jammy Noble"
           allowUpdates: true
 
   rerun-on-failure:
@@ -222,8 +221,10 @@ jobs:
       actions: write
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      GH_TOKEN: "${{ github.TOKEN }}"
     steps:
       - uses: actions/checkout@v4
       - name: Trigger rerun workflow on job failures
-        run: gh workflow run rerun.yml -f run_id=${{ github.run_id }} -f attempts=${{ github.run_attempt }} -f retries=${{ inputs.retries }}
+        run: |
+          inputs_retries="${{ inputs.retries }}"
+          gh workflow run rerun.yml -f run_id=${{ github.run_id }} -f attempts=${{ github.run_attempt }} -f retries=${inputs_retries:-1}
