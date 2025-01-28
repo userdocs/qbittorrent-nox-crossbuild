@@ -58,6 +58,8 @@ jobs:
     steps:
       - name: Host - Checkout action
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Host - set up qemu-user-static binfmt-support
         run: sudo apt install libpipeline1 qemu-user-static binfmt-support
