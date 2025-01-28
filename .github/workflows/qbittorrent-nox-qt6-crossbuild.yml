@@ -19,12 +19,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: write
+permissions: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     outputs:
       qbittorrent_nox_version: ${{ steps.version_info.outputs.qbittorrent_nox_version }}
     strategy:
@@ -58,101 +59,94 @@ jobs:
       - name: Host - Checkout action
         uses: actions/checkout@v4
 
-      # Fix this bug https://github.com/actions/runner-images/issues/7192
-      - name: Host - phased updates
-        run: printf '%s\n' 'APT::Get::Always-Include-Phased-Updates "false";' | sudo tee /etc/apt/apt.conf.d/99-phased-updates
-
-      - name: Host - update
-        run: sudo apt-get update
-
-      - name: Host - upgrade
-        run: sudo apt-get -y upgrade
-
-      # No action or other method to bootstrap binfmt-support and qemu-user-static on the host runner
       - name: Host - set up qemu-user-static binfmt-support
         run: sudo apt install libpipeline1 qemu-user-static binfmt-support
 
-      # Why are we doing it like this and not using a container setup? That's how you're supposed to do it, right?
-      # qemu-user-static and binfmt-support are not part of the runner images https://github.com/actions/runner-images?tab=readme-ov-file#available-images
-      # We would need to modify the runner to install these before the container starts. Which you cannot do as there is no way to bootstrap the host.
-      # So we install them on the host then create/pull a custom docker image that we use to build the multiarch targets.
-      # We are always on the host runner but can use any docker image we need with the access the qemu emulation when required.
-      #
-      # We are using these pre configured toolchain images that allows me to remove 50% of the code/time from this action.
-      #
-      # https://github.com/userdocs/dcb/blob/main/Dockerfile
-      #
-      # The image does not run as root and has password-less sudo. There are two users username:1000 /home/username and github:1001 /home/github
-      # In the action it runs as 1001 /home/github and files should be available to the host. For local use, you might need -u 1000
-
       - name: Host - Create docker multiarch ${{ matrix.arch }} container
-        run: docker run --name multiarch -it -d -u 1001 -v ${{ github.workspace }}:/home/github ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
+        run: docker run --name multiarch -it -d -v ${{ github.workspace }}:/home/github ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
 
       - name: Docker - cmake and ninja download and install
         run: |
           docker exec multiarch curl -sNL "https://github.com/userdocs/cmake-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
-          docker exec multiarch sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
+          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
 
       - name: Docker - zlib-ng download and install
         run: |
           docker exec multiarch curl -sNL "https://github.com/userdocs/zlib-ng-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb
-          docker exec multiarch sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb
+          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb
 
       - name: Docker - openssl download and install
         run: |
           docker exec multiarch curl -sNL "https://github.com/userdocs/openssl-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb
-          docker exec multiarch sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb
+          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb
 
       - name: Docker - libtorrent download and install
         run: |
           docker exec multiarch curl -sNL "https://github.com/userdocs/libtorrent-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb
-          docker exec multiarch sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb
+          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb
 
       - name: Docker - qt6 download and install
         run: |
           docker exec multiarch curl -sNL "https://github.com/userdocs/qt6-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb
-          docker exec multiarch sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb
+          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb
 
       - name: Docker - Bootstrap the boost files
         run: |
-          boost_version="$(git ls-remote -q -t --refs https://github.com/boostorg/boost.git | awk '{sub("refs/tags/boost-", "");sub("(.*)(rc|alpha|beta)(.*)", ""); print $2 }' | awk '!/^$/' | sort -rV | head -n1)"
-          curl -sNLk https://boostorg.jfrog.io/artifactory/main/release/${boost_version}/source/boost_${boost_version//./_}.tar.gz -o "boost.tar.gz"
-          tar xf "boost.tar.gz"
-          echo "boost_version=${boost_version//./_}" >> $GITHUB_ENV
+          boost_version="$(git ls-remote -q -t --refs https://github.com/boostorg/boost.git | awk '{sub("refs/tags/boost-", "");sub("(.*)(rc|alpha|beta|-bgl)(.*)", ""); print $2 }' | awk '!/^$/' | sort -rV | head -n1)"
+
+          if curl -sfLI "https://github.com/boostorg/boost/releases/latest/download/boost-${boost_version}-b2-nodocs.tar.xz"; then
+            boost_url="https://github.com/boostorg/boost/releases/latest/download/boost-${boost_version}-b2-nodocs.tar.xz" && boost_tar_xz="true"
+          elif curl -sfLI "https://archives.boost.io/release/${boost_version}/source/boost_${boost_version//./_}.tar.gz" &> /dev/null; then
+            boost_url="https://archives.boost.io/release/${boost_version}/source/boost_${boost_version//./_}.tar.gz"
+          elif curl -sfLI "https://sourceforge.net/projects/boost/files/boost/${boost_version}/boost_${boost_version//./_}.tar.gz" &> /dev/null; then
+            boost_url="https://sourceforge.net/projects/boost/files/boost/${boost_version}/boost_${boost_version//./_}.tar.gz"
+          elif curl -sfLI "https://github.com/userdocs/boost/releases/download/boost-${boost_version}/boost_${boost_version//./_}.tar.gz" &> /dev/null; then
+            boost_url="https://github.com/userdocs/boost/releases/download/boost-${boost_version}/boost_${boost_version//./_}.tar.gz"
+          else
+            printf '%s\n' "Error: Unable to find a download link for Boost version: $boost_version"
+            exit 1
+          fi
+
+          if [[ "$boost_tar_xz" == "true" ]]; then
+              curl -sL "$boost_url" > boost.tar.xz
+              boost_archive_name="boost.tar.xz"
+              printf '%s\n' "boost_folder_name=boost-${boost_version}" >> $GITHUB_ENV
+          else
+              curl -sL "$boost_url" > boost.tar.gz
+              boost_archive_name="boost.tar.gz"
+              printf '%s\n' "boost_folder_name=boost_${boost_version//./_}" >> $GITHUB_ENV
+          fi
+
+          tar xf "${boost_archive_name}"
 
       - name: Docker - qbittorrent set latest release as branch
-        run: |
-          echo "github_branch=$(git ls-remote -q -t --refs https://github.com/qbittorrent/qBittorrent.git | awk '{sub("refs/tags/", "");sub("(.*)(-[^0-9].*|rc|alpha|beta)(.*)", ""); print $2 }' | awk '!/^$/' | sort -rV | head -n1)" >> $GITHUB_ENV
-          echo "release_body_text=kde/5.15 on amd64 arm64 armhf for Debian Buster Bullseye and Ubuntu bionic Focal" >> $GITHUB_ENV
+        run: printf '%s\n' "github_branch=$(git ls-remote -q -t --refs https://github.com/qbittorrent/qBittorrent.git | awk '{sub("refs/tags/", "");sub("(.*)(-[^0-9].*|rc|alpha|beta)(.*)", ""); print $2 }' | awk '!/^$/' | sort -rV | head -n1)" >> $GITHUB_ENV
 
       - name: Docker - qbittorrent - git clone
-        run: docker exec multiarch git clone --single-branch --branch "${{ env.github_branch }}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/qbittorrent/qBittorrent.git qbittorrent
+        run: docker exec -u github:github multiarch git clone --single-branch --branch "${github_branch}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/qbittorrent/qBittorrent.git qbittorrent
 
       - name: Docker - qbittorrent cmake configure
         run: >
-          docker exec -w /home/github/qbittorrent multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build
+          docker exec -u github:github -w /home/github/qbittorrent multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build
           -D CMAKE_BUILD_TYPE="release"
           -D GUI=OFF -D QT6="ON"
-          -D CMAKE_CXX_STANDARD="${{ env.cxx_standard }}"
+          -D CMAKE_CXX_STANDARD="${cxx_standard}"
           -D CMAKE_CXX_STANDARD_REQUIRED=ON
           -D CMAKE_CXX_EXTENSIONS=OFF
-          -D CMAKE_PREFIX_PATH="/${{ env.opt_dir_name }}"
-          -D BOOST_INCLUDEDIR="/home/github/boost_${{ env.boost_version }}/"
-          -D CMAKE_INSTALL_PREFIX="/home/github/build/${{ env.opt_dir_name }}"
+          -D CMAKE_PREFIX_PATH="/${opt_dir_name}"
+          -D BOOST_INCLUDEDIR="/home/github/${boost_folder_name}/"
+          -D CMAKE_INSTALL_PREFIX="/home/github/build/${=opt_dir_name}"
 
       - name: Docker - qbittorrent cmake build
         run: docker exec -w /home/github/qbittorrent multiarch cmake --build build
 
       - name: Docker - qbittorrent cmake install
-        run: docker exec -w /home/github/qbittorrent multiarch cmake --install build
+        run: docker exec -u github:github -w /home/github/qbittorrent multiarch cmake --install build
 
       - name: Docker - Set full qBittorrent version to variable
         run: |
-          qbittorrent_nox_version="${{ env.github_branch }}"
-          echo "qbittorrent_nox_version=${qbittorrent_nox_version/release-}" >> $GITHUB_ENV
-
-      - name: Docker - Set deb dependencies for qbittorrent-nox
-        run: echo "qbittorrent-nox-deb-deps=zlib-ng,openssl,libtorrent,qt6,libgeoip1" >> $GITHUB_ENV
+          qbittorrent_nox_version="${github_branch}"
+          printf '%s\n' "qbittorrent_nox_version=${qbittorrent_nox_version/release-}" >> $GITHUB_ENV
 
       - name: Host - Create deb packages
         uses: jiro4989/build-deb-action@v4
@@ -162,17 +156,17 @@ jobs:
           maintainer: userdocs
           compress_type: gzip
           version: "${{ env.qbittorrent_nox_version }}"
-          depends: "${{ env.qbittorrent-nox-deb-deps }}"
+          depends: "zlib-ng,openssl,libtorrent,qt6,libgeoip1"
           arch: "${{ matrix.arch }}"
           desc: "${{ matrix.name }}-${{ matrix.arch }} for ${{ matrix.os_id }}-${{ matrix.os_codename }}"
 
       - name: Host - Remove version from release name and use hyphens
-        run: mv -f "${{ matrix.name }}_${{ env.qbittorrent_nox_version }}_${{ matrix.arch }}.deb" "${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
+        run: mv -f "${{ matrix.name }}_${qbittorrent_nox_version}_${{ matrix.arch }}.deb" "${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.name }}-${{ matrix.arch }}.deb"
 
       - name: Info
         id: version_info
         run: |
-          echo "qbittorrent_nox_version=${{ env.qbittorrent_nox_version }}" >> $GITHUB_OUTPUT
+          echo "qbittorrent_nox_version=${qbittorrent_nox_version}" >> $GITHUB_OUTPUT
 
       - name: Host - upload deb packages
         uses: actions/upload-artifact@v4
@@ -183,14 +177,18 @@ jobs:
   release:
     name: Upload artifacts to release
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     needs: build
     if: always() && contains(needs.*.result, 'success') && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
     env:
-      GH_TOKEN: "${{ secrets.GITHUB_TOKEN }}"
+      GH_TOKEN: "${{ github.token }}"
       qbittorrent_nox_version: ${{ needs.build.outputs.qbittorrent_nox_version }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Host - Download artifacts
         uses: actions/download-artifact@v4
@@ -213,18 +211,30 @@ jobs:
           body: "qbittorrent-nox built against qt6 on amd64 arm64 armhf for Debian Bullseye Bookworm and Ubuntu Focal Jammy Noble"
           allowUpdates: true
 
-  rerun-on-failure:
-    if: failure() && inputs.skip_rerun == '0'
-    name: rerun-on-failure
-    needs: release
+  ci-auto-rerun-failed-jobs:
+    if: failure() && (github.event.inputs.skip_rerun || 'false') == 'false'
+    needs: [release]
+    concurrency:
+      group: ci-auto-rerun-failed-jobs
+      cancel-in-progress: true
     permissions:
       actions: write
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04-arm
     env:
-      GH_TOKEN: "${{ github.TOKEN }}"
+      GH_TOKEN: "${{ secrets.AUTO_RERUN || github.token }}"
+      github_repo: "" # To use ci-auto-rerun-failed-jobs.yml hosted in a remote repository else default to the current repository. Requires PAT token AUTO_RERUN
+      retries: ${{ github.event.inputs.retries || '1' }}
+      distinct_id: ${{ github.event.inputs.distinct_id }}
     steps:
       - uses: actions/checkout@v4
-      - name: Trigger rerun workflow on job failures
-        run: |
-          inputs_retries="${{ inputs.retries }}"
-          gh workflow run rerun.yml -f run_id=${{ github.run_id }} -f attempts=${{ github.run_attempt }} -f retries=${inputs_retries:-1}
+        with:
+          persist-credentials: false
+      - name: ci-auto-rerun-failed-jobs via ${{ env.github_repo || github.repository }}
+        run: >
+          gh workflow run ci-auto-rerun-failed-jobs-action.yml
+          --repo "${github_repo:-$GITHUB_REPOSITORY}"
+          -f github_repo=${GITHUB_REPOSITORY}
+          -f run_id=${GITHUB_RUN_ID}
+          -f attempts=${GITHUB_RUN_ATTEMPT}
+          -f retries=${retries}
+          -f distinct_id=${distinct_id}
