@@ -125,7 +125,7 @@ jobs:
         run: printf '%s\n' "github_branch=$(git ls-remote -q -t --refs https://github.com/qbittorrent/qBittorrent.git | awk '{sub("refs/tags/", "");sub("(.*)(-[^0-9].*|rc|alpha|beta)(.*)", ""); print $2 }' | awk '!/^$/' | sort -rV | head -n1)" >> $GITHUB_ENV
 
       - name: Docker - qbittorrent - git clone
-        run: docker exec -u github:github multiarch git clone --single-branch --branch "${github_branch}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/qbittorrent/qBittorrent.git qbittorrent
+        run: docker exec -u github:github -w /home/github multiarch git clone --single-branch --branch "${github_branch}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/qbittorrent/qBittorrent.git qbittorrent
 
       - name: Docker - qbittorrent cmake configure
         run: >
