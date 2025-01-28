@@ -135,7 +135,7 @@ jobs:
           -D CMAKE_CXX_EXTENSIONS=OFF
           -D CMAKE_PREFIX_PATH="/${opt_dir_name}"
           -D BOOST_INCLUDEDIR="/home/github/${boost_folder_name}/"
-          -D CMAKE_INSTALL_PREFIX="/home/github/build/${=opt_dir_name}"
+          -D CMAKE_INSTALL_PREFIX="/home/github/build/${opt_dir_name}"
 
       - name: Docker - qbittorrent cmake build
         run: docker exec -w /home/github/qbittorrent multiarch cmake --build build
@@ -165,8 +165,7 @@ jobs:
 
       - name: Info
         id: version_info
-        run: |
-          echo "qbittorrent_nox_version=${qbittorrent_nox_version}" >> $GITHUB_OUTPUT
+        run: echo "qbittorrent_nox_version=${qbittorrent_nox_version}" >> $GITHUB_OUTPUT
 
       - name: Host - upload deb packages
         uses: actions/upload-artifact@v4
