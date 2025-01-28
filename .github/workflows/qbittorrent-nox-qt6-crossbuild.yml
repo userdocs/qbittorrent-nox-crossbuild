@@ -33,17 +33,13 @@ jobs:
       matrix:
         name: [qbittorrent-nox]
         os_id: [debian, ubuntu]
-        os_codename: [bullseye, bookworm, focal, jammy, noble]
+        os_codename: [bookworm, jammy, noble]
         arch: [amd64, armhf, arm64]
         exclude:
-          - os_id: debian
-            os_codename: focal
           - os_id: debian
             os_codename: jammy
           - os_id: debian
             os_codename: noble
-          - os_id: ubuntu
-            os_codename: bullseye
           - os_id: ubuntu
             os_codename: bookworm
 
@@ -209,7 +205,7 @@ jobs:
           replacesArtifacts: true
           tag: "${{ env.qbittorrent_nox_version }}.qt6"
           name: "qbittorrent-nox ${{ env.qbittorrent_nox_version }} qt6"
-          body: "qbittorrent-nox built against qt6 on amd64 arm64 armhf for Debian Bullseye Bookworm and Ubuntu Focal Jammy Noble"
+          body: "qbittorrent-nox built against qt6 on amd64 arm64 armhf for Debian Bookworm and Ubuntu Jammy Noble"
           allowUpdates: true
 
   ci-auto-rerun-failed-jobs:
