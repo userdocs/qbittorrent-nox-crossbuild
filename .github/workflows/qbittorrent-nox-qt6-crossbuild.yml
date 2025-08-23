@@ -33,7 +33,7 @@ jobs:
       matrix:
         name: [qbittorrent-nox]
         os_id: [debian, ubuntu]
-        os_codename: [bookworm, jammy, noble]
+        os_codename: [bookworm, trixie, jammy, noble]
         arch: [amd64, armhf, arm64]
         exclude:
           - os_id: debian
@@ -42,6 +42,8 @@ jobs:
             os_codename: noble
           - os_id: ubuntu
             os_codename: bookworm
+          - os_id: ubuntu
+            os_codename: trixie
 
     name: ${{ matrix.os_id }}:${{ matrix.os_codename }} ${{ matrix.name }} ${{ matrix.arch }}
 
@@ -53,40 +55,44 @@ jobs:
 
     steps:
       - name: Host - Checkout action
-        uses: actions/checkout@v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
         with:
           persist-credentials: false
 
       - name: Host - Bootstrap qemu
-        uses: userdocs/actions/qemu@main
+        if: matrix.arch != 'amd64'
+        uses: userdocs/actions/qemu@e74d179578ddcf1cd07cd9eefd0915f33a3bd600 # v1.0.1
 
-      - name: Host - Create docker multiarch ${{ matrix.arch }} container
-        run: docker run --name multiarch -it -d -v ${{ github.workspace }}:/home/github ghcr.io/userdocs/dcb:${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
+      - uses: userdocs/actions/qbt_docker@main
+        id: qbt_docker
+        with:
+            os_id: ghcr.io/userdocs/dcb # this action works with ghcr.io/userdocs/* images and generic images like debian/ubuntu/alpine
+            os_version_id: ${{ matrix.os_id }}-${{ matrix.os_codename }}-${{ matrix.arch }}
 
       - name: Docker - cmake and ninja download and install
         run: |
-          docker exec multiarch curl -sNL "https://github.com/userdocs/cmake-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
-          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
+          docker exec "${container_name}" curl -sNL "https://github.com/userdocs/cmake-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
+          docker exec "${container_name}" sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-cmake-${{ matrix.arch }}.deb
 
       - name: Docker - zlib-ng download and install
         run: |
-          docker exec multiarch curl -sNL "https://github.com/userdocs/zlib-ng-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb
-          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb
+          docker exec "${container_name}" curl -sNL "https://github.com/userdocs/zlib-ng-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb
+          docker exec "${container_name}" sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-zlib-ng-${{ matrix.arch }}.deb
 
       - name: Docker - openssl download and install
         run: |
-          docker exec multiarch curl -sNL "https://github.com/userdocs/openssl-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb
-          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb
+          docker exec "${container_name}" curl -sNL "https://github.com/userdocs/openssl-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb
+          docker exec "${container_name}" sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-openssl-${{ matrix.arch }}.deb
 
       - name: Docker - libtorrent download and install
         run: |
-          docker exec multiarch curl -sNL "https://github.com/userdocs/libtorrent-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb
-          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb
+          docker exec "${container_name}" curl -sNL "https://github.com/userdocs/libtorrent-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb
+          docker exec "${container_name}" sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-libtorrent-${{ matrix.arch }}.deb
 
       - name: Docker - qt6 download and install
         run: |
-          docker exec multiarch curl -sNL "https://github.com/userdocs/qt6-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb
-          docker exec multiarch dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb
+          docker exec "${container_name}" curl -sNL "https://github.com/userdocs/qt6-crossbuild/releases/latest/download/${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb" -o ${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb
+          docker exec "${container_name}" sudo dpkg -i ${{ matrix.os_id }}-${{ matrix.os_codename }}-qt6-${{ matrix.arch }}.deb
 
       - name: Docker - Bootstrap the boost files
         run: |
@@ -121,25 +127,25 @@ jobs:
         run: printf '%s\n' "github_branch=$(git ls-remote -q -t --refs https://github.com/qbittorrent/qBittorrent.git | awk '{sub("refs/tags/", "");sub("(.*)(-[^0-9].*|rc|alpha|beta)(.*)", ""); print $2 }' | awk '!/^$/' | sort -rV | head -n1)" >> $GITHUB_ENV
 
       - name: Docker - qbittorrent - git clone
-        run: docker exec -u github:github -w /home/github multiarch git clone --single-branch --branch "${github_branch}" --shallow-submodules --recurse-submodules --depth 1 https://github.com/qbittorrent/qBittorrent.git qbittorrent
+        run: docker exec -w ${wd} "${container_name}" git clone --single-branch --branch "${github_branch}" --shallow-submodules --recurse-submodules --depth=1 https://github.com/qbittorrent/qBittorrent.git qbittorrent
 
       - name: Docker - qbittorrent cmake configure
         run: >
-          docker exec -u github:github -w /home/github/qbittorrent multiarch cmake -Wno-dev -Wno-deprecated -G Ninja -B build
+          docker exec -w ${wd}/qbittorrent "${container_name}" cmake -Wno-dev -Wno-deprecated -G Ninja -B build
           -D CMAKE_BUILD_TYPE="release"
           -D GUI=OFF -D QT6="ON"
           -D CMAKE_CXX_STANDARD="${cxx_standard}"
           -D CMAKE_CXX_STANDARD_REQUIRED=ON
           -D CMAKE_CXX_EXTENSIONS=OFF
           -D CMAKE_PREFIX_PATH="/${opt_dir_name}"
-          -D BOOST_INCLUDEDIR="/home/github/${boost_folder_name}/"
-          -D CMAKE_INSTALL_PREFIX="/home/github/build/${opt_dir_name}"
+          -D BOOST_INCLUDEDIR="${wd}/${boost_folder_name}/"
+          -D CMAKE_INSTALL_PREFIX="${wd}/build/${opt_dir_name}"
 
       - name: Docker - qbittorrent cmake build
-        run: docker exec -w /home/github/qbittorrent multiarch cmake --build build
+        run: docker exec -w ${wd}/qbittorrent "${container_name}" cmake --build build
 
       - name: Docker - qbittorrent cmake install
-        run: docker exec -u github:github -w /home/github/qbittorrent multiarch cmake --install build
+        run: docker exec -w ${wd}/qbittorrent "${container_name}" cmake --install build
 
       - name: Docker - Set full qBittorrent version to variable
         run: |
@@ -205,7 +211,7 @@ jobs:
           replacesArtifacts: true
           tag: "${{ env.qbittorrent_nox_version }}.qt6"
           name: "qbittorrent-nox ${{ env.qbittorrent_nox_version }} qt6"
-          body: "qbittorrent-nox built against qt6 on amd64 arm64 armhf for Debian Bookworm and Ubuntu Jammy Noble"
+          body: "qbittorrent-nox built against qt6 on amd64 arm64 armhf for Debian Bookworm Trixie and Ubuntu Jammy Noble"
           allowUpdates: true
 
   ci-auto-rerun-failed-jobs:
